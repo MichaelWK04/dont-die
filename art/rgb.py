@@ -1,15 +1,15 @@
 from PIL import Image
 
 # Load the pixel art image
-image_path = "hello.png"
+image_path = input("Enter file name:")
 pixel_art_image = Image.open(image_path)
 
 # Get the width and height of the image
 width, height = pixel_art_image.size
 
-# Ensure the image size is 32x32
+# Ensure the image size is 64x64
 if width != 64 or height != 64:
-    raise ValueError("The image dimensions are not 32x32. Please resize the image first.")
+    raise ValueError("The image dimensions are not 64x64. Please resize the image first.")
 
 # Create a list to store the formatted RGB values of each pixel (all 1024 values)
 all_pixel_rgb_values = []
@@ -25,3 +25,4 @@ for y in range(height):
 output_file = "all_pixel_rgb_values.txt"
 with open(output_file, "w") as file:
     file.write(",".join(all_pixel_rgb_values))
+    print("Done!")
