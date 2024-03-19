@@ -1,7 +1,7 @@
 from PIL import Image
 
 # Load the pixel art image
-image_path = input("Enter file name:")
+image_path = input("Enter file name: ")
 pixel_art_image = Image.open(image_path)
 
 # Get the width and height of the image
