@@ -58,29 +58,31 @@ game_over:	.word	0x010004,0x010003,0x010001,0x010000,0x000000,0x000100,0x000100,
 	# [8]: coin 3 (0: not collected, 1: collected)				32
 	# [9]: enemy 1 projectile						36
 	# [10]: enemy 2 projectile						40
+	# [11]: infinite lives (debug, 0 = off, 1 = on)				44
 	
-game_data: .word 0,0,0x10008000,0,0,2,0,0,0,0x10008000,0x10008000
+game_data:	.word	0, 0, 0x10008000, 0, 0, 2, 0, 0, 0, 0x10008000, 0x10008000, 0
 	
-.eqv    BASE_ADDRESS, 0x10008000
-.eqv    MAX_ADDRESS, 0x10018000
-.eqv	WHITE, 0xFFFFFF
-.eqv	BLACK, 0x000000
-.eqv	HEALTHBAR, 0xB4B4B4
-.eqv    RED, 0xFF0008		# Stationary obstacle that kills the player upon touching it
-.eqv    PLAYER, 0xFFFFB4
-.eqv    PLATFORM, 0xD99343	# Platform that player can't jump through
-.eqv	ENEMY, 0x8A3EBD
-.eqv    SKY1, 0x66E6FF
-.eqv	SKY2, 0x2A3087
-.eqv	SKY3, 0x590006
-.eqv    COIN1, 0xFFF200
-.eqv	COIN2, 0xCCBF02
-.eqv	FLAG, 0x27B500
+.eqv    BASE_ADDRESS,	0x10008000
+.eqv    MAX_ADDRESS,	0x1000C000
+.eqv	WHITE,			0xFFFFFF
+.eqv	BLACK,			0x000000
+.eqv	HEALTHBAR,		0xB4B4B4
+.eqv    RED,			0xFF0008		# Stationary obstacle that kills the player upon touching it
+.eqv    PLAYER,			0xFFFFB4
+.eqv    PLATFORM,		0xD99343	# Platform that player can't jump through
+.eqv	ENEMY,			0x8A3EBD
+.eqv    SKY1,			0x66E6FF
+.eqv	SKY2,			0x2A3087
+.eqv	SKY3,			0x590006
+.eqv    COIN1,			0xFFF200
+.eqv	COIN2,			0xCCBF02
+.eqv	FLAG,			0x27B500
+
 .text
 main:           
-    	li $s0, BASE_ADDRESS
-   	li $s1, MAX_ADDRESS
-   	j load_main_menu
+	li	$s0,	BASE_ADDRESS
+   	li	$s1,	MAX_ADDRESS
+   	j	load_main_menu
    	
 load_main_menu:
 	la $t0, 0($s0)
@@ -106,6 +108,33 @@ main_menu_keypress:
 	beq $t2, 0x77, switch_menu_select	# ASCII code for 'w' is 0x77
 	beq $t2, 0x73, switch_menu_select	# ASCII code for 's' is 0x73
 	beq $t2, 0x20, menu_select 		# ASCII code of ' ' is 0x20
+	beq $t2, 0x32, level_two_cheat		# ASCII code of '2' is 0x32
+	beq $t2, 0x33, level_three_cheat 	# ASCII code of '3' is 0x33
+	beq $t2, 0x6D, toggle_infinite_health 	# ASCII code of 'm' is 0x6D
+	j main_menu_loop
+
+level_two_cheat:
+	li $t0, 1
+	sw $t0, game_data
+	j game_setup
+
+level_three_cheat:
+	li $t0, 2
+	sw $t0, game_data
+	j game_setup
+
+toggle_infinite_health:
+	lw $t0, game_data + 44
+	beqz $t0, infinite_health_on
+	sw $zero, game_data + 44
+	li $t1, WHITE
+	sw $t1, -4($s1)
+	j main_menu_loop
+	infinite_health_on:
+	li $t1, 1
+	sw $t1, game_data + 44
+	li $t2, FLAG
+	sw $t2, -4($s1)
 	j main_menu_loop
 
 switch_menu_select:
@@ -556,8 +585,11 @@ set_projectile:
 damage_player:
 	jal stop_x_movement
 	lw $t3, game_data + 20
+	lw $t4, game_data + 44
+	beq $t4, 1, skip_damage
 	addi $t3, $t3, -1
 	beq $t3, -1, load_game_over
+	skip_damage:
 	jal load_damage	
 	li $v0, 32
 	li $a0, 2500
@@ -746,6 +778,7 @@ reset:
    	sw $t0, game_data + 24
    	sw $t0, game_data + 28
    	sw $t0, game_data + 32
+   	sw $zero, game_data + 44
    	j load_main_menu
 
 exit:           
