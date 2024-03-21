@@ -62,7 +62,6 @@ game_over:	.word	0x010004,0x010003,0x010001,0x010000,0x000000,0x000100,0x000100,
 	# [10]: enemy 2 projectile						40
 	# [11]: infinite lives (debug, 0 = off, 1 = on)				44
 	
-game_data:		.word	0, 0, 0x10008000, 0, 0, 2, 0, 0, 0, 0x10008000, 0x10008000, 0
 current_level:		.word	0			# Current level (lvl one = 0, lvl 2 = 1, lvl 3 = 2, bonus = 3)	0
 menu_selection:		.word	0			# Main menu select (0 = play, 1 = exit)
 player_location:	.word 	0x10008000		# Player's head's location in memory
@@ -95,46 +94,46 @@ frame_rate:		.word	0			# Variable to control sleep length for game loop
 .text
 .globl main
 main:           
-	li $s0,	BASE_ADDRESS		# Load first pixel of bitmap display to $s1
+	li $s0,	BASE_ADDRESS			# Load first pixel of bitmap display to $s1
    	li $s1,	MAX_ADDRESS			# Load last pixel + 1 of bitmap display to $s2
-   	li $t0, DEFAULT_FRAME_RATE	# $t0 = DEFAULT_FRAME_RATE (default = 50)
+   	li $t0, DEFAULT_FRAME_RATE		# $t0 = DEFAULT_FRAME_RATE (default = 50)
    	sw $t0, frame_rate			# frame_rate = $t0
    	j	load_main_menu			# jump to load_main_menu
    	
 load_main_menu:					# Loads main menu screen to bitmap display
 	la $t0, 0($s0)				# $t0 = 0($s0)
-    	la $t1, main_menu		# $t1 = main_menu
+    	la $t1, main_menu			# $t1 = main_menu
 	load_main_menu_enter_loop:
    	bge $t0, $s1, load_main_menu_exit_loop	# if ($t0 = $s1), exit loop
-    	lw $t2, 0($t1)		# $t2 = 0($t1)
-    	sw $t2, 0($t0)		# $t2 = 0($t0)
-    	addi $t0, $t0, 4	# $t0 = $t0 + 4
-    	addi $t1, $t1, 4	# $t1 = $t1 + 4
+    	lw $t2, 0($t1)				# $t2 = 0($t1)
+    	sw $t2, 0($t0)				# $t2 = 0($t0)
+    	addi $t0, $t0, 4			# $t0 = $t0 + 4
+    	addi $t1, $t1, 4			# $t1 = $t1 + 4
 	j load_main_menu_enter_loop
-	load_main_menu_exit_loop:	# Loop exit
-	j set_start					# Set current menu select to 'start'
+	load_main_menu_exit_loop:		# Loop exit
+	j set_start				# Set current menu select to 'start'
 
-main_menu_loop:						# Menu loop that waits for key press
-	li $t9, 0xffff0000				# $t9 = 0xffff0000
-	lw $t8, 0($t9)					# $t8 = 1 if input detected, 0 if no input detected
-	beq $t8, 1, main_menu_keypress	# if ($t8 = 1), go to main_menu_keypress
+main_menu_loop:					# Menu loop that waits for key press
+	li $t9, 0xffff0000			# $t9 = 0xffff0000
+	lw $t8, 0($t9)				# $t8 = 1 if input detected, 0 if no input detected
+	beq $t8, 1, main_menu_keypress		# if ($t8 = 1), go to main_menu_keypress
 	j main_menu_loop			
 
 main_menu_keypress:
-	lw $t2, 4($t9) 							# this assumes $t9 is set to 0xfff0000 from before
+	lw $t2, 4($t9) 					# this assumes $t9 is set to 0xfff0000 from before
 	beq $t2, 0x77, switch_menu_select		# ASCII code for 'w' is 0x77: Change menu selection
 	beq $t2, 0x73, switch_menu_select		# ASCII code for 's' is 0x73: Change menu selection
-	beq $t2, 0x20, menu_select 				# ASCII code of ' ' is 0x20: Confirm menu selection
+	beq $t2, 0x20, menu_select 			# ASCII code of ' ' is 0x20: Confirm menu selection
 	beq $t2, 0x32, level_two_cheat			# ASCII code of '2' is 0x32: Cheat to skip to lvl 2
 	beq $t2, 0x33, level_three_cheat 		# ASCII code of '3' is 0x33: Cheat to skip to lvl 3
 	beq $t2, 0x34, level_bonus_cheat 		# ASCII code of '4' is 0x34: Cheat to skip to bonus lvl
-	beq $t2, 0x6D, toggle_infinite_health 	# ASCII code of 'm' is 0x6D: Cheat to toggle infinite health
+	beq $t2, 0x6D, toggle_infinite_health 		# ASCII code of 'm' is 0x6D: Cheat to toggle infinite health
 	beq $t2, 0x6E, toggle_slow_time 		# ASCII code of 'n' is 0x6D: Cheat to slow down time
-	j main_menu_loop						# Go back to main menu loop if invalid input pressed
+	j main_menu_loop				# Go back to main menu loop if invalid input pressed
 
 level_two_cheat:
-	li $t0, 1			# $t0 = 1
-	sw $t0, current_level	# game_data
+	li $t0, 1
+	sw $t0, current_level
 	j game_setup
 
 level_three_cheat:
@@ -178,8 +177,8 @@ toggle_slow_time:
 
 switch_menu_select:
 	lw $t1, menu_selection
-	beq $t1, 1, set_start			#If quit is set at game_data[1], load the game.
-	j set_quit				#If play is set at game_data[1], quit the program.
+	beq $t1, 1, set_start			#If play is set at set_start, load the game.
+	j set_quit				#If quit is set at set_start, quit the program.
 
 set_quit:
 	li $t1, WHITE		# Set 3 pixels beside 'play' to white
@@ -190,7 +189,7 @@ set_quit:
 	sw $t1, 13884($s0)
 	sw $t1, 13888($s0)
 	sw $t1, 13892($s0)
-	li $t0, 1		# Set game_data[1] to 1 (represents quit)
+	li $t0, 1		# Set menu_selection to 1 (represents quit)
 	sw $t0, menu_selection
 	j main_menu_loop
 
@@ -203,12 +202,12 @@ set_start:
 	sw $t1, 13884($s0)
 	sw $t1, 13888($s0)
 	sw $t1, 13892($s0)
-	li $t0, 0		# Set game_data[1] to 0 (represents play)
+	li $t0, 0		# Set menu_selection to 0 (represents play)
 	sw $t0, menu_selection
 	j main_menu_loop
 
 menu_select:
-	lw $t1, menu_selection	#Check game_data[1]'s value
+	lw $t1, menu_selection	#Check menu_selection's value
 	beq $t1, 0, game_setup	#If 0, start the game.
 	j exit			#If 1, quit
 
@@ -224,7 +223,7 @@ game_setup:
 load_level_one:
 	la $t0, 0($s0)
     	la $t1, level_one
-	load_level_one_enter_loop:
+	load_level_one_enter_loop:		# Display level 1
    	bge $t0, $s1, load_level_one_exit_loop
     	lw $t2, 0($t1)
     	sw $t2, 0($t0)
@@ -232,15 +231,15 @@ load_level_one:
     	addi $t1, $t1, 4
 	j load_level_one_enter_loop
 	load_level_one_exit_loop:
-	la $t0, 15376($s0)		# Set player location in game_data
+	la $t0, 15376($s0)			# Set level 1 spawn point in player_location
 	sw $t0, player_location
-	sw $zero, collected_coins
+	sw $zero, collected_coins		# Uncollect coin 1
    	j set_hearts
 
 load_level_two:
 	la $t0, 0($s0)
     	la $t1, level_two
-	load_level_two_enter_loop:
+	load_level_two_enter_loop:		# Display level 2
    	bge $t0, $s1, load_level_two_exit_loop
     	lw $t2, 0($t1)
     	sw $t2, 0($t0)
@@ -248,23 +247,23 @@ load_level_two:
     	addi $t1, $t1, 4
 	j load_level_two_enter_loop
 	load_level_two_exit_loop:
-	la $t0, 15400($s0)		# Set player location in game_data
+	la $t0, 15400($s0)			# Set level 2 spawn point in player_location
 	sw $t0, player_location
-	sw $zero, collected_coins+4
+	sw $zero, collected_coins+4		# Uncollect coin 2
    	jal level_two_projectile_spawn
    	j set_hearts
 
 level_two_projectile_spawn:
-	la $t1, 10168($s0)
+	la $t1, 10168($s0)			# Set enemy 1's projectile in level 2 to be right beside enemy 1
 	sw $t1, projectile_location
-	la $t1, 15800($s0)
+	la $t1, 15800($s0)			# Set enemy 2's projectile in level 2 to be right beside enemy 2
 	sw $t1, projectile_location+4
 	jr $ra
 
 load_level_three:
 	la $t0, 0($s0)
     	la $t1, level_three
-	load_level_three_enter_loop:
+	load_level_three_enter_loop:		# Display level 3
    	bge $t0, $s1, load_level_three_exit_loop
     	lw $t2, 0($t1)
     	sw $t2, 0($t0)
@@ -272,23 +271,23 @@ load_level_three:
     	addi $t1, $t1, 4
 	j load_level_three_enter_loop
 	load_level_three_exit_loop:
-	la $t0, 1028($s0)		# Set player location in game_data
+	la $t0, 1028($s0)			# Set level 3 spawn point in player_location
 	sw $t0, player_location
-	sw $zero, collected_coins+8
+	sw $zero, collected_coins+8		# Uncollect coin 3
 	jal level_three_projectile_spawn
    	j set_hearts
 
 level_three_projectile_spawn:
-	la $t1, 12008($s0)
+	la $t1, 12008($s0)			# Set enemy 1's projectile in level 3 to be right beside enemy 1
 	sw $t1, projectile_location
-	la $t1, 13032($s0)
+	la $t1, 13032($s0)			# Set enemy 2's projectile in level 3 to be right beside enemy 2
 	sw $t1, projectile_location+4
 	jr $ra
 
 load_bonus_level:
 	la $t0, 0($s0)
     	la $t1, bonus
-	load_bonus_enter_loop:
+	load_bonus_enter_loop:			# Display bonus level
    	bge $t0, $s1, load_bonus_exit_loop
     	lw $t2, 0($t1)
     	sw $t2, 0($t0)
@@ -296,93 +295,92 @@ load_bonus_level:
     	addi $t1, $t1, 4
 	j load_bonus_enter_loop
 	load_bonus_exit_loop:
-	la $t0, 15376($s0)		# Set player location in game_data
+	la $t0, 15376($s0)			# Set bonus level spawn point in player_location
 	sw $t0, player_location
 	li $t1, 1
 	sw $t1, infinite_lives
    	j eat_input
 
 set_hearts:
-	lw $t0, health
+	lw $t0, health			# Load current player's health
 	beq $t0, 2, game
 	li $t1, HEALTHBAR
 	beq $t0, 1, set_one_heart
-	# Set zero hearts
-	sw $t1, 496($s0)
+	sw $t1, 496($s0)		# Hides first heart
 	sw $t1, 504($s0)
 	sw $t1, 756($s0)
 	set_one_heart:
-	sw $t1, 1520($s0)
+	sw $t1, 1520($s0)		# Hides second heart
 	sw $t1, 1780($s0)
 	sw $t1, 1528($s0)
 	j eat_input
 
-eat_input:
+eat_input:				# Makes it so player stands still if key is pressed during a loading screen
 	li $t8, 0
 	sw $zero, 4($t9)
 	j game
 
 game:
-	li $t9, 0xffff0000
+	li $t9, 0xffff0000		# Check keyboard input
 	lw $t8, 0($t9)
 	beq $t8, 0, no_input
 	jal keypress_happened
 
-	no_input:
+	no_input:			# Remove player and enemy sprites from screen
  	lw $a0, player_location
 	jal replace_character
 	lw $t0, current_level
 	beqz $t0, skip_enemy
-	beq $t0, 3, skip_enemy
+	beq $t0, 3, skip_enemy		# No enemies are in level 1 and bonus level, so skip enemy functions in those levels
 	lw $a0, projectile_location
 	jal replace_projectile
 	lw $a0, projectile_location+4
 	jal replace_projectile
 	skip_enemy:
-	j move_character
+	j move_character		# Player movement calculations and collision detection
 	
 	after_physics:
 	lw $a0, player_location
-	jal coin_check
-	jal set_character
+	jal coin_check			# Checks if player is now touching a coin
+	jal set_character		# Displays the player's sprite
 	
 	lw $t0, current_level
-	beqz $t0, sleep
+	beqz $t0, sleep			# Skip enemy manipulations if in level 1 or bonus level
 	beq $t0, 3, sleep
 	lw $a0, projectile_location
 	lw $a1, projectile_location+4
 	beq $t0, 1, enemy_level_two
-	j move_projectile_lvl_three
+	j move_projectile_lvl_three	# Update projectile locations
 	enemy_level_two:
 	j move_projectile_lvl_two
 	sleep:
-	lw $t0, frame_rate
-	li $v0, 32
+	lw $t0, frame_rate		# Sleeps game for 'frame_rate' miliseconds
+	li $v0, 32			# System call for sleep
 	move $a0, $t0
 	syscall
 	j game
 
 keypress_happened:
 	lw $t0, 4($t9) 			# this assumes $t9 is set to 0xfff0000 from before
-	beq $t0, 0x71, exit 		# reset game when 'q' is pressed (ASCII = 0x71)
-	beq $t0, 0x72, reset 		# reset game when 'r' is pressed (ASCII = 0x72)
-	beq $t0, 0x77, move_up 		# ASCII code of 'w' is 0x77
-	beq $t0, 0x20, move_up 		# ASCII code of 'w' is 0x20
-	beq $t0, 0x61, move_left 	# ASCII code of 'a' is 0x61
-	beq $t0, 0x73, stop_x_movement 	# ASCII code of 's' is 0x73 or 115 in decimal
-	beq $t0, 0x64, move_right 	# ASCII code of 'd' is 0x64
+	beq $t0, 0x71, exit 		# reset game when 'q' is pressed (ASCII = 0x71): Quit game
+	beq $t0, 0x72, reset 		# reset game when 'r' is pressed (ASCII = 0x72): Go back to main menu
+	beq $t0, 0x77, move_up 		# ASCII code of 'w' is 0x77: Jump
+	beq $t0, 0x20, move_up 		# ASCII code of 'w' is 0x20: Jump
+	beq $t0, 0x61, move_left 	# ASCII code of 'a' is 0x61: Move left
+	beq $t0, 0x73, stop_x_movement 	# ASCII code of 's' is 0x73 or 115 in decimal: Stop x axis movement
+	beq $t0, 0x64, move_right 	# ASCII code of 'd' is 0x64: Move right
 	jr $ra
 
 move_left:
 	lw $t0, direction
-	beq $t0, 1, stop_x_movement
+	beq $t0, 1, stop_x_movement	# Stop x movement if player is moving right
 	li $t1, -1
 	sw $t1, direction
 	jr $ra
 
 move_right:
 	lw $t0, direction
-	beq $t0, -1, stop_x_movement
+	beq $t0, -1, stop_x_movement	# Stop x movement if player is moving left
 	li $t1, 1
 	sw $t1, direction
 	jr $ra
@@ -393,7 +391,7 @@ stop_x_movement:
 
 move_up:
 	lw $t0, jump_stage
-	bnez $t0, ignore_move_up
+	bnez $t0, ignore_move_up	# Jump state must be 0 to jump (player is landed on ground)
 	li $t1, 1
 	sw $t1, jump_stage
 	ignore_move_up:
@@ -409,60 +407,57 @@ move_character:
 	mfhi $t1			
 	beq $t1, 0, hit_border		# If player at x = 0, don't move left
 	# Move player left
-	addi $t0, $t0, -4
+	addi $t0, $t0, -4		# Move player's location in memory 1 pixel to the left
 	move $a0, $t0
 	jal check_x_collision
 	j jump_check
 	
-	moving_right:
-	li $t1, 256			# Player is moving right
+	moving_right:			# Player is moving right
+	li $t1, 256			
 	div $t0, $t1
 	mfhi $t1
 	beq $t1, 252, hit_border	# If player at x = 252, don't move right
 	# Move player right
-	addi $t0, $t0, 4
+	addi $t0, $t0, 4		# Move player's location in memory 1 pixel to the right
 	move $a0, $t0
 	jal check_x_collision
 	
 	jump_check:
 	lw $t0, player_location
 	lw $t1, jump_stage
-	ble $t1, 0, set_fall
+	ble $t1, 0, player_fall		# If player is not mid-jump, skip jump operations
 	li $t2, 256
 	add $t3, $t0, -0x10008000
 	div $t3, $t2
 	mflo $t2
-	ble $t2, $zero, start_fall
+	ble $t2, $zero, start_fall	# If player in the top row of pixels, set player to falling state
 	beq $t1, 11, start_fall
-	addi $t0, $t0, -256
+	addi $t0, $t0, -256		# Check one pixel above player
 	lw $t2, 0($t0)
-	beq $t2, PLATFORM, start_fall
-	beq $t2, RED, damage_player
-	beq $t2, ENEMY, damage_player
-	beq $t2, FLAG, level_complete
+	beq $t2, PLATFORM, start_fall	# If player hits platform from below, set player to falling state
+	beq $t2, RED, damage_player	# If player hits a spike, damage player
+	beq $t2, ENEMY, damage_player	# If player hits an enemy, damage player
+	beq $t2, FLAG, level_complete	# If player hits the flag, complete the level
 	addi $t1, $t1, 1
-	sw $t1, jump_stage
-	sw $t0, player_location
+	sw $t1, jump_stage		# Add 1 to jump stage
+	sw $t0, player_location		# Save new jump position in player_location
 	j after_physics
 	
 	start_fall:
-	li $t0, -1
+	li $t0, -1			# Set jump stage to -1 (player is now falling)
 	sw $t0, jump_stage
 	j after_physics
 	
-	set_fall:
-	li $t0, -1
-	sw $t0, jump_stage
 	player_fall:
 	lw $t0, player_location
-	addi $t0, $t0, 768
+	addi $t0, $t0, 768		# Checks one pixel below the player's feet (the player's lowest pixel)
 	lw $t2, 0($t0)
-	beq $t2, PLATFORM, landed
-	beq $t2, RED, damage_player
-	beq $t2, ENEMY, damage_player
-	beq $t2, FLAG, level_complete
+	beq $t2, PLATFORM, landed	# If player lands on a platform, jump to landed
+	beq $t2, RED, damage_player	# If player hits a spike, damage player
+	beq $t2, ENEMY, damage_player	# If player hits an enemy, damage player
+	beq $t2, FLAG, level_complete	# If player hits the flag, complete the level
 	add $t0, $t0, -512
-	sw $t0, player_location
+	sw $t0, player_location		# Set player's location one pixel lower than the current location
 	j after_physics
 	landed:
 	sw $zero, jump_stage
@@ -470,53 +465,53 @@ move_character:
 
 check_x_collision:
 	lw $t1, 0($a0)
-	beq $t1, PLATFORM, hit_border
-	beq $t1, RED, damage_player
-	beq $t1, ENEMY, damage_player
-	beq $t1, FLAG, level_complete
+	beq $t1, PLATFORM, hit_border	# If player's head runs into a platform from the side, stop movement
+	beq $t1, RED, damage_player	# If player's head hits a spike, damage player
+	beq $t1, ENEMY, damage_player	# If player's head hits an enemy, damage player
+	beq $t1, FLAG, level_complete	# If player's head hits the flag, complete the level
 	lw $t1, 256($a0)
-	beq $t1, PLATFORM, hit_border
-	beq $t1, RED, damage_player
-	beq $t1, ENEMY, damage_player
-	beq $t1, FLAG, level_complete
+	beq $t1, PLATFORM, hit_border	# If player's body runs into a platform from the side, stop movement
+	beq $t1, RED, damage_player	# If player's body hits a spike, damage player
+	beq $t1, ENEMY, damage_player	# If player's body hits an enemy, damage player
+	beq $t1, FLAG, level_complete	# If player's body hits the flag, complete the level
 	lw $t1, 512($a0)
-	beq $t1, PLATFORM, hit_border
-	beq $t1, RED, damage_player
-	beq $t1, ENEMY, damage_player
-	beq $t1, FLAG, level_complete
+	beq $t1, PLATFORM, hit_border	# If player's legs runs into a platform from the side, stop movement
+	beq $t1, RED, damage_player	# If player's legs hits a spike, damage player
+	beq $t1, ENEMY, damage_player	# If player's legs hits an enemy, damage player
+	beq $t1, FLAG, level_complete	# If player's legs hits the flag, complete the level
 	sw $a0, player_location
 	jr $ra
 
 hit_border:
 	lw $t0, jump_stage
-	bnez $t0, jump_check
+	bnez $t0, jump_check		# If player is mid-jump, don't cancel player's x movement
 	jal stop_x_movement
 	j jump_check
 
 coin_check:
 	lw $t0, 0($a0)
-	beq $t0, COIN1, collect_coin
+	beq $t0, COIN1, collect_coin	# Check if player's head is touching a coin
 	addi $t0, $t0, 256
-	beq $a2, COIN1, collect_coin
+	beq $t0, COIN1, collect_coin	# Check if player's body is touching a coin
 	addi $t0, $t0, 256
-	beq $a2, COIN1, collect_coin
+	beq $t0, COIN1, collect_coin	# Check if player's legs are touching a coin
 	jr $ra
 
 collect_coin:
 	lw $t0, current_level
 	li $t1, 1
-	beq $t0, 2, collect_coin_three
+	beq $t0, 2, collect_coin_three	# Collect coin corresponding to player's current level
 	beq $t0, 1, collect_coin_two
-	sw $t1, collected_coins
+	sw $t1, collected_coins		# Collect coin 1
 	j unload_coin_one
-	collect_coin_two:
+	collect_coin_two:		# Collect coin 2
 	sw $t1, collected_coins+4
 	j unload_coin_two
-	collect_coin_three:
+	collect_coin_three:		# Collect coin 3
 	sw $t1, collected_coins+8
 	j unload_coin_three
 
-unload_coin_one:
+unload_coin_one:			# Removes coin 1's sprite upon collecting it
 	li $t0, SKY1
 	sw $t0, 14536($s0)
 	sw $t0, 14540($s0)
@@ -532,7 +527,7 @@ unload_coin_one:
 	sw $t0, 15312($s0)
 	jr $ra
 
-unload_coin_two:
+unload_coin_two:			# Removes coin 2's sprite upon collecting it
 	li $t0, SKY2
 	sw $t0, 8772($s0)
 	sw $t0, 8776($s0)
@@ -549,7 +544,7 @@ unload_coin_two:
 	jr $ra
 
 unload_coin_three:
-li $t0, SKY3
+li $t0, SKY3				# Removes coin 3's sprite upon collecting it
 	sw $t0, 10972($s0)
 	sw $t0, 10976($s0)
 	sw $t0, 10980($s0)
@@ -565,7 +560,7 @@ li $t0, SKY3
 	jr $ra
 
 replace_character:
-	lw $t1, current_level
+	lw $t1, current_level			# Replace character with current level's background colour
 	beq $t1, 3, level_bonus_sky_player
 	beq $t1, 2, level_three_sky_player
 	beq $t1, 1, level_two_sky_player
@@ -582,15 +577,15 @@ replace_character:
 	j set_pixels_player
 	
 	set_pixels_player:
-	sw $t0, 0($a0)		# Set head
+	sw $t0, 0($a0)		# Replace head
 	add $a0, $a0, 256
-	sw $t0, 0($a0)		# Set body
+	sw $t0, 0($a0)		# Replace body
 	add $a0, $a0, 256
-	sw $t0, 0($a0)		# Set legs
+	sw $t0, 0($a0)		# Replace legs
 	jr $ra
 
 replace_projectile:
-	lw $t1, current_level
+	lw $t1, current_level			# Replace enemy's projectile with current level's background colour
 	beq $t1, 2, level_three_sky_enemy
 	li $t0, SKY2
 	j set_pixels_enemy
@@ -599,90 +594,90 @@ replace_projectile:
 	j set_pixels_enemy
 	
 	set_pixels_enemy:
-	sw $t0, 0($a0)		
+	sw $t0, 0($a0)				# Replace projectile head
 	add $a0, $a0, 4
-	sw $t0, 0($a0)
+	sw $t0, 0($a0)				# Replace projectile tail
 	jr $ra
 
-move_projectile_lvl_two:
+move_projectile_lvl_two:			# Moves bullets and checks for bullet collision for level 2
 	la $t0, 10040($s0)
-	beq $a0, $t0, reset_lvl_two_enemy
-	addi $a0, $a0, -4
+	beq $a0, $t0, reset_lvl_two_enemy	# Checks if bullet has reached the wall. If it has, reset its position
+	addi $a0, $a0, -4			# Move both bullet positions one pixel to the left
 	addi $a1, $a1, -4
 	lw $t1, 0($a0)
-	beq $t1, PLAYER, damage_player
+	beq $t1, PLAYER, damage_player		# Checks if bullet 1 is now touching the player. If it is, damage the player
 	lw $t1, 4($a0)
 	beq $t1, PLAYER, damage_player
 	lw $t2, 0($a1)
-	beq $t2, PLAYER, damage_player
+	beq $t2, PLAYER, damage_player		# Checks if bullet 2 is now touching the player. If it is, damage the player
 	lw $t2, 4($a1)
 	beq $t2, PLAYER, damage_player
-	sw $a0, projectile_location
-	sw $a1, projectile_location+4
-	jal set_projectile
+	sw $a0, projectile_location		# Save bullet 1's new location
+	sw $a1, projectile_location+4		# Save bullet 2's new location
+	jal set_projectile			# Display projectile's new locations
 	j sleep
 	reset_lvl_two_enemy:
-	jal level_two_projectile_spawn
-	jal replace_projectile
+	jal level_two_projectile_spawn		# Sets bullet position to be right beside the enemy
+	jal replace_projectile			# Display projectile's new locations
 	j sleep
 
-move_projectile_lvl_three:
+move_projectile_lvl_three:			# Moves bullets and checks for bullet collision for level 3
 	la $t0, 11872($s0)
-	beq $a0, $t0, reset_lvl_three_enemy
-	addi $a0, $a0, -4
+	beq $a0, $t0, reset_lvl_three_enemy	# Checks if bullet has reached the wall. If it has, reset its position
+	addi $a0, $a0, -4			# Move both bullet positions one pixel to the left
 	addi $a1, $a1, -4
-	beq $t1, PLAYER, damage_player
+	beq $t1, PLAYER, damage_player		# Checks if bullet 1 is now touching the player. If it is, damage the player
 	lw $t1, 4($a0)
 	beq $t1, PLAYER, damage_player
 	lw $t2, 0($a1)
-	beq $t2, PLAYER, damage_player
+	beq $t2, PLAYER, damage_player		# Checks if bullet 2 is now touching the player. If it is, damage the player
 	lw $t2, 4($a1)
 	beq $t2, PLAYER, damage_player
-	sw $a0, projectile_location
-	sw $a1, projectile_location+4
-	jal set_projectile
+	sw $a0, projectile_location		# Save bullet 1's new location
+	sw $a1, projectile_location+4		# Save bullet 2's new location
+	jal set_projectile			# Display projectile's new locations
 	j sleep
 	reset_lvl_three_enemy:
-	jal level_three_projectile_spawn
-	jal replace_projectile
+	jal level_three_projectile_spawn	# Sets bullet position to be right beside the enemy
+	jal replace_projectile			# Display projectile's new locations
 	j sleep
 	
 set_character:
 	li $t0, PLAYER
-	sw $t0, 0($a0)		# Set head
+	sw $t0, 0($a0)		# Display player's head
 	add $a0, $a0, 256
-	sw $t0, 0($a0)		# Set body
+	sw $t0, 0($a0)		# Display player's body
 	add $a0, $a0, 256
-	sw $t0, 0($a0)		# Set legs
+	sw $t0, 0($a0)		# Display player's legs
 	add $a0, $a0, 256
 	jr $ra
 
 set_projectile:
 	li $t0, RED
 	li $t1, ENEMY
-	sw $t0, 0($a0)
-	sw $t1, 4($a0)
-	sw $t0, 0($a1)
-	sw $t1, 4($a1)
+	sw $t0, 0($a0)		# Display projectile 1's bullet head
+	sw $t1, 4($a0)		# Display projectile 1's bullet tail
+	sw $t0, 0($a1)		# Display projectile 2's bullet head
+	sw $t1, 4($a1)		# Display projectile 2's bullet tail
 	jr $ra
 
 damage_player:
-	jal stop_x_movement
-	lw $t4, infinite_lives
-	beq $t4, 1, skip_damage
+	jal stop_x_movement		# Make the player stop moving
+	lw $t4, infinite_lives	
+	beq $t4, 1, skip_damage		# If infinite lives, skip player damage procedure
 	lw $t3, health
-	addi $t3, $t3, -1
-	beq $t3, -1, load_game_over
-	sw $t3, health
+	addi $t3, $t3, -1		# Decrease one health
+	beq $t3, -1, load_game_over	# If player has -1 hearts, it is game over!
+	sw $t3, health			# Save updated health
 	skip_damage:
-	jal load_damage	
-	li $v0, 32
+	jal load_damage
+	li $v0, 32			# Display lost life screen for 2.5 seconds
 	li $a0, 2500
 	syscall
 	j game_setup
 
 load_damage:
-	la $t0, 0($s0)
+	la $t0, 0($s0)			# Load lost life screen
     	la $t1, damage
 	load_damage_start_loop:
    	bge $t0, $s1, load_damage_exit_loop
@@ -695,34 +690,34 @@ load_damage:
 	jr $ra
 
 level_complete:
-	jal stop_x_movement
+	jal stop_x_movement			# Make the player stop moving
 	lw $t0, current_level
-	beq $t0, 3, load_you_win
-	beq $t0, 2, bonus_check
+	beq $t0, 3, load_you_win		# If bonus level is completed, display YOU WIN screen.
+	beq $t0, 2, bonus_check			# If level 2 is completed, check if they're qualified for bonus level (collected 3 coins)
 	beq $t0, 1, load_level_two_fin
 	beq $t0, 0, load_level_one_fin
-	next_level:
+	next_level:				# Display completed level screen for 2.5 seconds
 	li $v0, 32
 	li $a0, 2500
 	syscall
-	lw $t0, current_level
+	lw $t0, current_level			# Increment current level by 1 and save it
 	addi $t0, $t0, 1
 	sw $t0, current_level
-	li $t1, 2
+	li $t1, 2				# Resets player health to full (2)
 	sw $t1, health
-	j game_setup
+	j game_setup				# Reload the game with updated current level
 
 bonus_check:
 	lw $t0, collected_coins
 	lw $t1, collected_coins+4
 	lw $t2, collected_coins+8
-	beqz $t0, load_you_win
-	beqz $t1, load_you_win
+	beqz $t0, load_you_win			# Check if all 3 coins are collected
+	beqz $t1, load_you_win			# If one coin is missing, set player to YOU WIN screen
 	beqz $t2, load_you_win
-	j load_bonus_loading
+	j load_bonus_loading			# Otherwise, load the bonus level
 
 load_level_one_fin:
-	la $t0, 0($s0)
+	la $t0, 0($s0)				# Load the level 1 completed screen
     	la $t1, level_one_fin
 	load_level_one_fin_start_loop:
    	bge $t0, $s1, load_level_one_fin_exit_loop
@@ -732,14 +727,14 @@ load_level_one_fin:
     	addi $t1, $t1, 4
 	j load_level_one_fin_start_loop
 	load_level_one_fin_exit_loop:
-	lw $a0, collected_coins
-	beqz $a0, no_coin_one
+	lw $a0, collected_coins			# Checks if player collected coin 1
+	beqz $a0, no_coin_one			# If coin was collected, display a coin symbol at the bottom left
 	jal display_coin
 	no_coin_one:
 	j next_level
 
 load_level_two_fin:
-	la $t0, 0($s0)
+	la $t0, 0($s0)				# Load the level 2 completed screen
     	la $t1, level_two_fin
 	load_level_two_fin_start_loop:
    	bge $t0, $s1, load_level_two_fin_exit_loop
@@ -749,14 +744,14 @@ load_level_two_fin:
     	addi $t1, $t1, 4
 	j load_level_two_fin_start_loop
 	load_level_two_fin_exit_loop:
-	lw $a0, collected_coins+4
-	beqz $a0, no_coin_two
+	lw $a0, collected_coins+4		# Checks if player collected coin 2
+	beqz $a0, no_coin_two			# If coin was collected, display a coin symbol at the bottom left
 	jal display_coin
 	no_coin_two:
 	j next_level
 
 load_bonus_loading:
-	la $t0, 0($s0)
+	la $t0, 0($s0)				# Load the bonus level loading screen
     	la $t1, bonus_loading
 	load_bonus_loading_start_loop:
    	bge $t0, $s1, load_bonus_loading_exit_loop
@@ -769,7 +764,7 @@ load_bonus_loading:
 	j next_level
 
 display_coin:
-	lw $t0, collected_coins
+	lw $t0, collected_coins			# Displays collected coins in the completed/you win screens
 	beq $t0, 1, display_coin_one
 	lw $t1, collected_coins+4
 	beq $t1, 1, display_coin_two
@@ -778,7 +773,7 @@ display_coin:
 	no_coin_display:
 	jr $ra
 
-display_coin_one:
+display_coin_one:				# Displays first coin icon if coin 1 is collected
 	li $t0, COIN1
 	li $t1, COIN2
 	sw $t0, 15108($s0)
@@ -793,13 +788,13 @@ display_coin_one:
 	sw $t0, 15876($s0)
 	sw $t0, 15880($s0)
 	sw $t0, 15884($s0)
-	lw $t2, collected_coins+4
+	lw $t2, collected_coins+4		# Checks if other coins have been collected
 	beq $t2, 1, display_coin_two
 	lw $t2, collected_coins+8
 	beq $t2, 1, display_coin_three
 	j no_coin_display
 
-display_coin_two:
+display_coin_two:				# Displays first coin icon if coin 2 is collected
 	li $t0, COIN1
 	li $t1, COIN2
 	sw $t0, 15124($s0)
@@ -814,11 +809,11 @@ display_coin_two:
 	sw $t0, 15892($s0)
 	sw $t0, 15896($s0)
 	sw $t0, 15900($s0)
-	lw $t2, collected_coins+8
+	lw $t2, collected_coins+8		# Checks if coin 3 has been collected
 	beq $t2, 1, display_coin_three
 	j no_coin_display
 
-display_coin_three:
+display_coin_three:				# Displays first coin icon if coin 3 is collected
 	li $t0, COIN1
 	li $t1, COIN2
 	sw $t0, 15140($s0)
@@ -833,9 +828,9 @@ display_coin_three:
 	sw $t0, 15908($s0)
 	sw $t0, 15912($s0)
 	sw $t0, 15916($s0)
-	j no_coin_display
+	j no_coin_display			# Checks if coin 3 has been collected
 
-load_you_win:
+load_you_win:					# Display YOU WIN screen
 	la $t0, 0($s0)
     	la $t1, you_win
 	load_you_win_start_loop:
@@ -846,10 +841,10 @@ load_you_win:
     	addi $t1, $t1, 4
 	j load_you_win_start_loop
 	load_you_win_exit_loop:
-	jal display_coin
+	jal display_coin			# Display coins at bottom left
 	j game_over_loop
 
-load_game_over:
+load_game_over:					# Display GAME OVER screen
 	la $t0, 0($s0)
     	la $t1, game_over
 	load_game_over_start_loop:
@@ -862,7 +857,7 @@ load_game_over:
 	load_game_over_exit_loop:
 	j game_over_loop
 
-game_over_loop:
+game_over_loop:					# Waits for input in GAME OVER/YOU WIN screen
 	li $t9, 0xffff0000
 	lw $t8, 0($t9)
 	beq $t8, 1, game_over_keypress
@@ -870,11 +865,11 @@ game_over_loop:
 
 game_over_keypress:
 	lw $t0, 4($t9) 				# this assumes $t9 is set to 0xfff0000 from before
-	beq $t0, 0x71, exit 			# reset game when 'q' is pressed (ASCII = 0x71)
-	beq $t0, 0x20, reset			# ASCII code of ' ' is 0x20
+	beq $t0, 0x71, exit 			# reset game when 'q' is pressed (ASCII = 0x71): quit
+	beq $t0, 0x20, reset			# ASCII code of ' ' is 0x20: Return to main menu
 	j game_over_loop
 
-reset:
+reset:						# Resets all variables to defaults (see variable declerations)
 	sw $zero, current_level
    	sw $zero, menu_selection
    	sw $s0, player_location
@@ -891,7 +886,5 @@ reset:
    	j load_main_menu
 
 exit:           
-    li $v0, 10 # Gracefully exit
-    syscall 
-
-
+    li $v0, 10					 # Gracefully exit
+    syscall
