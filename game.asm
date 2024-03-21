@@ -53,7 +53,7 @@ game_over:	.word	0x010004,0x010003,0x010001,0x010000,0x000000,0x000100,0x000100,
 	# [1]: main menu select (0 = play, 1 = exit)				4
 	# [2]: player location							8
 	# [3]: x axis player movement (-1 = left, 0 = not moving, 1 = right)	12
-	# [4]: jump (0: falling/on platform, 1-11: mid-jump)			16
+	# [4]: jump (-1: falling, 0: on platform, 1-11: mid-jump)			16
 	# [5]: health (-1 = dead, 0, 1, 2)					20
 	# [6]: coin 1 (0: not collected, 1: collected)				24
 	# [7]: coin 2 (0: not collected, 1: collected)				28
@@ -62,11 +62,20 @@ game_over:	.word	0x010004,0x010003,0x010001,0x010000,0x000000,0x000100,0x000100,
 	# [10]: enemy 2 projectile						40
 	# [11]: infinite lives (debug, 0 = off, 1 = on)				44
 	
-game_data:	.word	0, 0, 0x10008000, 0, 0, 2, 0, 0, 0, 0x10008000, 0x10008000, 0
-frame_rate:	.word	50	#Variable to control sleep length for game loop
+game_data:		.word	0, 0, 0x10008000, 0, 0, 2, 0, 0, 0, 0x10008000, 0x10008000, 0
+current_level:		.word	0			# Current level (lvl one = 0, lvl 2 = 1, lvl 3 = 2, bonus = 3)	0
+menu_selection:		.word	0			# Main menu select (0 = play, 1 = exit)
+player_location:	.word 	0x10008000		# Player's head's location in memory
+direction:		.word	0			# Player's x axis direction (-1 = left, 0 = not moving, 1 = right)
+jump_stage:		.word	0			# Stage of player's jump (-1: falling, 0: on platform, 1-11: mid-jump)
+health:			.word	2			# Player's health (-1 = dead, 0, 1, 2)
+collected_coins: 	.word 	0, 0, 0			# Coins 1, 2, 3 collection status (0 = not collected, 1 = collected)
+projectile_location:	.word 	0x10008000, 0x10008000	# Projectile 1 and 2's location in memory
+infinite_lives:		.word	0			# Infinite lives (0 = off, 1 = on)
+frame_rate:		.word	0			# Variable to control sleep length for game loop
 
 .eqv	DEFAULT_FRAME_RATE,	50		# Screen refreshes every 50ms as default
-.eqv	CHEAT_FRAME_RATE,	150		# Screen refreshes every 150ms for slow-mo
+.eqv	CHEAT_FRAME_RATE,	100		# Screen refreshes every 150ms for slow-mo
 .eqv    BASE_ADDRESS,		0x10008000	# Base address for bit display
 .eqv    MAX_ADDRESS,		0x1000C000	# Max address for bit display
 .eqv	WHITE,			0xFFFFFF	# White colour
@@ -86,66 +95,68 @@ frame_rate:	.word	50	#Variable to control sleep length for game loop
 .text
 .globl main
 main:           
-	li	$s0,	BASE_ADDRESS
-   	li	$s1,	MAX_ADDRESS
-   	j	load_main_menu
+	li $s0,	BASE_ADDRESS		# Load first pixel of bitmap display to $s1
+   	li $s1,	MAX_ADDRESS			# Load last pixel + 1 of bitmap display to $s2
+   	li $t0, DEFAULT_FRAME_RATE	# $t0 = DEFAULT_FRAME_RATE (default = 50)
+   	sw $t0, frame_rate			# frame_rate = $t0
+   	j	load_main_menu			# jump to load_main_menu
    	
-load_main_menu:
-	la $t0, 0($s0)
-    	la $t1, main_menu
+load_main_menu:					# Loads main menu screen to bitmap display
+	la $t0, 0($s0)				# $t0 = 0($s0)
+    	la $t1, main_menu		# $t1 = main_menu
 	load_main_menu_enter_loop:
-   	bge $t0, $s1, load_main_menu_exit_loop
-    	lw $t2, 0($t1)
-    	sw $t2, 0($t0)
-    	addi $t0, $t0, 4
-    	addi $t1, $t1, 4
+   	bge $t0, $s1, load_main_menu_exit_loop	# if ($t0 = $s1), exit loop
+    	lw $t2, 0($t1)		# $t2 = 0($t1)
+    	sw $t2, 0($t0)		# $t2 = 0($t0)
+    	addi $t0, $t0, 4	# $t0 = $t0 + 4
+    	addi $t1, $t1, 4	# $t1 = $t1 + 4
 	j load_main_menu_enter_loop
-	load_main_menu_exit_loop:
-	j set_start
+	load_main_menu_exit_loop:	# Loop exit
+	j set_start					# Set current menu select to 'start'
 
-main_menu_loop:
-	li $t9, 0xffff0000
-	lw $t8, 0($t9)
-	beq $t8, 1, main_menu_keypress
-	j main_menu_loop
+main_menu_loop:						# Menu loop that waits for key press
+	li $t9, 0xffff0000				# $t9 = 0xffff0000
+	lw $t8, 0($t9)					# $t8 = 1 if input detected, 0 if no input detected
+	beq $t8, 1, main_menu_keypress	# if ($t8 = 1), go to main_menu_keypress
+	j main_menu_loop			
 
 main_menu_keypress:
-	lw $t2, 4($t9) 				# this assumes $t9 is set to 0xfff0000 from before
-	beq $t2, 0x77, switch_menu_select	# ASCII code for 'w' is 0x77
-	beq $t2, 0x73, switch_menu_select	# ASCII code for 's' is 0x73
-	beq $t2, 0x20, menu_select 		# ASCII code of ' ' is 0x20
-	beq $t2, 0x32, level_two_cheat		# ASCII code of '2' is 0x32
-	beq $t2, 0x33, level_three_cheat 	# ASCII code of '3' is 0x33
-	beq $t2, 0x34, level_bonus_cheat 	# ASCII code of '3' is 0x34
-	beq $t2, 0x6D, toggle_infinite_health 	# ASCII code of 'm' is 0x6D
-	beq $t2, 0x6E, toggle_slow_time 	# ASCII code of 'n' is 0x6D
-	j main_menu_loop
+	lw $t2, 4($t9) 							# this assumes $t9 is set to 0xfff0000 from before
+	beq $t2, 0x77, switch_menu_select		# ASCII code for 'w' is 0x77: Change menu selection
+	beq $t2, 0x73, switch_menu_select		# ASCII code for 's' is 0x73: Change menu selection
+	beq $t2, 0x20, menu_select 				# ASCII code of ' ' is 0x20: Confirm menu selection
+	beq $t2, 0x32, level_two_cheat			# ASCII code of '2' is 0x32: Cheat to skip to lvl 2
+	beq $t2, 0x33, level_three_cheat 		# ASCII code of '3' is 0x33: Cheat to skip to lvl 3
+	beq $t2, 0x34, level_bonus_cheat 		# ASCII code of '4' is 0x34: Cheat to skip to bonus lvl
+	beq $t2, 0x6D, toggle_infinite_health 	# ASCII code of 'm' is 0x6D: Cheat to toggle infinite health
+	beq $t2, 0x6E, toggle_slow_time 		# ASCII code of 'n' is 0x6D: Cheat to slow down time
+	j main_menu_loop						# Go back to main menu loop if invalid input pressed
 
 level_two_cheat:
-	li $t0, 1
-	sw $t0, game_data
+	li $t0, 1			# $t0 = 1
+	sw $t0, current_level	# game_data
 	j game_setup
 
 level_three_cheat:
 	li $t0, 2
-	sw $t0, game_data
+	sw $t0, current_level
 	j game_setup
 
 level_bonus_cheat:
 	li $t0, 3
-	sw $t0, game_data
+	sw $t0, current_level
 	j game_setup
 
 toggle_infinite_health:
-	lw $t0, game_data + 44
+	lw $t0, infinite_lives
 	beqz $t0, infinite_health_on
-	sw $zero, game_data + 44
+	sw $zero, infinite_lives
 	li $t1, WHITE
 	sw $t1, -4($s1)
 	j main_menu_loop
 	infinite_health_on:
 	li $t1, 1
-	sw $t1, game_data + 44
+	sw $t1, infinite_lives
 	li $t2, FLAG
 	sw $t2, -4($s1)
 	j main_menu_loop
@@ -166,7 +177,7 @@ toggle_slow_time:
 	j main_menu_loop
 
 switch_menu_select:
-	lw $t1, game_data+4
+	lw $t1, menu_selection
 	beq $t1, 1, set_start			#If quit is set at game_data[1], load the game.
 	j set_quit				#If play is set at game_data[1], quit the program.
 
@@ -180,7 +191,7 @@ set_quit:
 	sw $t1, 13888($s0)
 	sw $t1, 13892($s0)
 	li $t0, 1		# Set game_data[1] to 1 (represents quit)
-	sw $t0, game_data + 4
+	sw $t0, menu_selection
 	j main_menu_loop
 
 set_start:
@@ -193,18 +204,18 @@ set_start:
 	sw $t1, 13888($s0)
 	sw $t1, 13892($s0)
 	li $t0, 0		# Set game_data[1] to 0 (represents play)
-	sw $t0, game_data + 4
+	sw $t0, menu_selection
 	j main_menu_loop
 
 menu_select:
-	lw $t1, game_data+4	#Check game_data[1]'s value
+	lw $t1, menu_selection	#Check game_data[1]'s value
 	beq $t1, 0, game_setup	#If 0, start the game.
 	j exit			#If 1, quit
 
 game_setup:
-   	sw $zero, game_data + 12
-   	sw $zero, game_data + 16
-	lw $t0, game_data
+   	sw $zero, direction
+   	sw $zero, jump_stage
+	lw $t0, current_level
 	beq, $t0, 3, load_bonus_level
 	beq, $t0, 2, load_level_three
 	beq, $t0, 1, load_level_two
@@ -222,8 +233,8 @@ load_level_one:
 	j load_level_one_enter_loop
 	load_level_one_exit_loop:
 	la $t0, 15376($s0)		# Set player location in game_data
-	sw $t0, game_data + 8
-	sw $zero, game_data + 24
+	sw $t0, player_location
+	sw $zero, collected_coins
    	j set_hearts
 
 load_level_two:
@@ -238,16 +249,16 @@ load_level_two:
 	j load_level_two_enter_loop
 	load_level_two_exit_loop:
 	la $t0, 15400($s0)		# Set player location in game_data
-	sw $t0, game_data + 8
-	sw $zero, game_data + 28
+	sw $t0, player_location
+	sw $zero, collected_coins+4
    	jal level_two_projectile_spawn
    	j set_hearts
 
 level_two_projectile_spawn:
 	la $t1, 10168($s0)
-	sw $t1, game_data + 36
+	sw $t1, projectile_location
 	la $t1, 15800($s0)
-	sw $t1, game_data + 40
+	sw $t1, projectile_location+4
 	jr $ra
 
 load_level_three:
@@ -262,16 +273,16 @@ load_level_three:
 	j load_level_three_enter_loop
 	load_level_three_exit_loop:
 	la $t0, 1028($s0)		# Set player location in game_data
-	sw $t0, game_data + 8
-	sw $zero, game_data + 32
+	sw $t0, player_location
+	sw $zero, collected_coins+8
 	jal level_three_projectile_spawn
    	j set_hearts
 
 level_three_projectile_spawn:
 	la $t1, 12008($s0)
-	sw $t1, game_data + 36
+	sw $t1, projectile_location
 	la $t1, 13032($s0)
-	sw $t1, game_data + 40
+	sw $t1, projectile_location+4
 	jr $ra
 
 load_bonus_level:
@@ -286,11 +297,13 @@ load_bonus_level:
 	j load_bonus_enter_loop
 	load_bonus_exit_loop:
 	la $t0, 15376($s0)		# Set player location in game_data
-	sw $t0, game_data + 8
+	sw $t0, player_location
+	li $t1, 1
+	sw $t1, infinite_lives
    	j eat_input
 
 set_hearts:
-	lw $t0, game_data + 20
+	lw $t0, health
 	beq $t0, 2, game
 	li $t1, HEALTHBAR
 	beq $t0, 1, set_one_heart
@@ -316,28 +329,28 @@ game:
 	jal keypress_happened
 
 	no_input:
- 	lw $a0, game_data + 8
+ 	lw $a0, player_location
 	jal replace_character
-	lw $t0, game_data
+	lw $t0, current_level
 	beqz $t0, skip_enemy
 	beq $t0, 3, skip_enemy
-	lw $a0, game_data + 36
+	lw $a0, projectile_location
 	jal replace_projectile
-	lw $a0, game_data + 40
+	lw $a0, projectile_location+4
 	jal replace_projectile
 	skip_enemy:
 	j move_character
 	
 	after_physics:
-	lw $a0, game_data + 8
+	lw $a0, player_location
 	jal coin_check
 	jal set_character
 	
-	lw $t0, game_data
+	lw $t0, current_level
 	beqz $t0, sleep
 	beq $t0, 3, sleep
-	lw $a0, game_data + 36
-	lw $a1, game_data + 40
+	lw $a0, projectile_location
+	lw $a1, projectile_location+4
 	beq $t0, 1, enemy_level_two
 	j move_projectile_lvl_three
 	enemy_level_two:
@@ -361,34 +374,34 @@ keypress_happened:
 	jr $ra
 
 move_left:
-	lw $t0, game_data + 12
+	lw $t0, direction
 	beq $t0, 1, stop_x_movement
 	li $t1, -1
-	sw $t1, game_data + 12
+	sw $t1, direction
 	jr $ra
 
 move_right:
-	lw $t0, game_data + 12
+	lw $t0, direction
 	beq $t0, -1, stop_x_movement
 	li $t1, 1
-	sw $t1, game_data + 12
+	sw $t1, direction
 	jr $ra
 
 stop_x_movement:
-	sw $zero, game_data + 12
+	sw $zero, direction
 	jr $ra
 
 move_up:
-	lw $t0, game_data + 16
+	lw $t0, jump_stage
 	bnez $t0, ignore_move_up
 	li $t1, 1
-	sw $t1, game_data + 16
+	sw $t1, jump_stage
 	ignore_move_up:
 	jr $ra
 
 move_character:
-	lw $t0, game_data + 8		# Get player location
-	lw $t1, game_data + 12		# Get player movement	
+	lw $t0, player_location		# Get player location
+	lw $t1, direction		# Get player movement	
 	beq $t1, 1, moving_right	# Check if player is moving right
 	beqz $t1, jump_check		# Check if player is standing still
 	li $t1, 256			# Player is moving left
@@ -412,8 +425,8 @@ move_character:
 	jal check_x_collision
 	
 	jump_check:
-	lw $t0, game_data + 8
-	lw $t1, game_data + 16
+	lw $t0, player_location
+	lw $t1, jump_stage
 	ble $t1, 0, set_fall
 	li $t2, 256
 	add $t3, $t0, -0x10008000
@@ -428,20 +441,20 @@ move_character:
 	beq $t2, ENEMY, damage_player
 	beq $t2, FLAG, level_complete
 	addi $t1, $t1, 1
-	sw $t1, game_data + 16
-	sw $t0, game_data + 8
+	sw $t1, jump_stage
+	sw $t0, player_location
 	j after_physics
 	
 	start_fall:
 	li $t0, -1
-	sw $t0, game_data + 16
+	sw $t0, jump_stage
 	j after_physics
 	
 	set_fall:
 	li $t0, -1
-	sw $t0, game_data + 16
+	sw $t0, jump_stage
 	player_fall:
-	lw $t0, game_data + 8
+	lw $t0, player_location
 	addi $t0, $t0, 768
 	lw $t2, 0($t0)
 	beq $t2, PLATFORM, landed
@@ -449,10 +462,10 @@ move_character:
 	beq $t2, ENEMY, damage_player
 	beq $t2, FLAG, level_complete
 	add $t0, $t0, -512
-	sw $t0, game_data + 8
+	sw $t0, player_location
 	j after_physics
 	landed:
-	sw $zero, game_data + 16
+	sw $zero, jump_stage
 	j after_physics
 
 check_x_collision:
@@ -471,11 +484,11 @@ check_x_collision:
 	beq $t1, RED, damage_player
 	beq $t1, ENEMY, damage_player
 	beq $t1, FLAG, level_complete
-	sw $a0, game_data + 8
+	sw $a0, player_location
 	jr $ra
 
 hit_border:
-	lw $t0, game_data + 16
+	lw $t0, jump_stage
 	bnez $t0, jump_check
 	jal stop_x_movement
 	j jump_check
@@ -490,17 +503,17 @@ coin_check:
 	jr $ra
 
 collect_coin:
-	lw $t0, game_data
+	lw $t0, current_level
 	li $t1, 1
 	beq $t0, 2, collect_coin_three
 	beq $t0, 1, collect_coin_two
-	sw $t1, game_data + 24
+	sw $t1, collected_coins
 	j unload_coin_one
 	collect_coin_two:
-	sw $t1, game_data + 28
+	sw $t1, collected_coins+4
 	j unload_coin_two
 	collect_coin_three:
-	sw $t1, game_data + 32
+	sw $t1, collected_coins+8
 	j unload_coin_three
 
 unload_coin_one:
@@ -552,7 +565,7 @@ li $t0, SKY3
 	jr $ra
 
 replace_character:
-	lw $t1, game_data
+	lw $t1, current_level
 	beq $t1, 3, level_bonus_sky_player
 	beq $t1, 2, level_three_sky_player
 	beq $t1, 1, level_two_sky_player
@@ -577,7 +590,7 @@ replace_character:
 	jr $ra
 
 replace_projectile:
-	lw $t1, game_data
+	lw $t1, current_level
 	beq $t1, 2, level_three_sky_enemy
 	li $t0, SKY2
 	j set_pixels_enemy
@@ -604,8 +617,8 @@ move_projectile_lvl_two:
 	beq $t2, PLAYER, damage_player
 	lw $t2, 4($a1)
 	beq $t2, PLAYER, damage_player
-	sw $a0, game_data + 36
-	sw $a1, game_data + 40
+	sw $a0, projectile_location
+	sw $a1, projectile_location+4
 	jal set_projectile
 	j sleep
 	reset_lvl_two_enemy:
@@ -625,8 +638,8 @@ move_projectile_lvl_three:
 	beq $t2, PLAYER, damage_player
 	lw $t2, 4($a1)
 	beq $t2, PLAYER, damage_player
-	sw $a0, game_data + 36
-	sw $a1, game_data + 40
+	sw $a0, projectile_location
+	sw $a1, projectile_location+4
 	jal set_projectile
 	j sleep
 	reset_lvl_three_enemy:
@@ -655,14 +668,12 @@ set_projectile:
 
 damage_player:
 	jal stop_x_movement
+	lw $t4, infinite_lives
 	beq $t4, 1, skip_damage
-	beq $t5, 3, skip_damage
-	lw $t3, game_data + 20
-	lw $t4, game_data + 44
-	lw $t5, game_data
+	lw $t3, health
 	addi $t3, $t3, -1
 	beq $t3, -1, load_game_over
-	sw $t3, game_data + 20
+	sw $t3, health
 	skip_damage:
 	jal load_damage	
 	li $v0, 32
@@ -685,7 +696,7 @@ load_damage:
 
 level_complete:
 	jal stop_x_movement
-	lw $t0, game_data
+	lw $t0, current_level
 	beq $t0, 3, load_you_win
 	beq $t0, 2, bonus_check
 	beq $t0, 1, load_level_two_fin
@@ -694,17 +705,17 @@ level_complete:
 	li $v0, 32
 	li $a0, 2500
 	syscall
-	lw $t0, game_data
+	lw $t0, current_level
 	addi $t0, $t0, 1
-	sw $t0, game_data
+	sw $t0, current_level
 	li $t1, 2
-	sw $t1, game_data + 20
+	sw $t1, health
 	j game_setup
 
 bonus_check:
-	lw $t0, game_data + 24
-	lw $t1, game_data + 28
-	lw $t2, game_data + 32
+	lw $t0, collected_coins
+	lw $t1, collected_coins+4
+	lw $t2, collected_coins+8
 	beqz $t0, load_you_win
 	beqz $t1, load_you_win
 	beqz $t2, load_you_win
@@ -721,7 +732,7 @@ load_level_one_fin:
     	addi $t1, $t1, 4
 	j load_level_one_fin_start_loop
 	load_level_one_fin_exit_loop:
-	lw $a0, game_data + 24
+	lw $a0, collected_coins
 	beqz $a0, no_coin_one
 	jal display_coin
 	no_coin_one:
@@ -738,7 +749,7 @@ load_level_two_fin:
     	addi $t1, $t1, 4
 	j load_level_two_fin_start_loop
 	load_level_two_fin_exit_loop:
-	lw $a0, game_data + 28
+	lw $a0, collected_coins+4
 	beqz $a0, no_coin_two
 	jal display_coin
 	no_coin_two:
@@ -758,11 +769,11 @@ load_bonus_loading:
 	j next_level
 
 display_coin:
-	lw $t0, game_data + 24
+	lw $t0, collected_coins
 	beq $t0, 1, display_coin_one
-	lw $t1, game_data + 28
+	lw $t1, collected_coins+4
 	beq $t1, 1, display_coin_two
-	lw $t2, game_data + 32
+	lw $t2, collected_coins+8
 	beq $t2, 1, display_coin_three
 	no_coin_display:
 	jr $ra
@@ -782,9 +793,9 @@ display_coin_one:
 	sw $t0, 15876($s0)
 	sw $t0, 15880($s0)
 	sw $t0, 15884($s0)
-	lw $t2, game_data + 28
+	lw $t2, collected_coins+4
 	beq $t2, 1, display_coin_two
-	lw $t2, game_data + 32
+	lw $t2, collected_coins+8
 	beq $t2, 1, display_coin_three
 	j no_coin_display
 
@@ -803,7 +814,7 @@ display_coin_two:
 	sw $t0, 15892($s0)
 	sw $t0, 15896($s0)
 	sw $t0, 15900($s0)
-	lw $t2, game_data + 32
+	lw $t2, collected_coins+8
 	beq $t2, 1, display_coin_three
 	j no_coin_display
 
@@ -864,17 +875,17 @@ game_over_keypress:
 	j game_over_loop
 
 reset:
-	sw $zero, game_data
-   	sw $zero, game_data + 4
-   	sw $s0, game_data + 8
-   	sw $zero, game_data + 12
-   	sw $zero, game_data + 16
+	sw $zero, current_level
+   	sw $zero, menu_selection
+   	sw $s0, player_location
+   	sw $zero, direction
+   	sw $zero, jump_stage
    	li $t0, 2
-   	sw $t0, game_data + 20
-   	sw $t0, game_data + 24
-   	sw $t0, game_data + 28
-   	sw $t0, game_data + 32
-   	sw $zero, game_data + 44
+   	sw $t0, health
+   	sw $t0, collected_coins
+   	sw $t0, collected_coins+4
+   	sw $t0, collected_coins+8
+   	sw $zero, infinite_lives
    	li $t0, DEFAULT_FRAME_RATE
    	sw $t0, frame_rate
    	j load_main_menu
