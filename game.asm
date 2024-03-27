@@ -449,6 +449,8 @@ move_character:
 	j after_physics
 	
 	player_fall:
+	li $t0, -1			# Set jump stage to -1 (player is now falling)
+	sw $t0, jump_stage
 	lw $t0, player_location
 	addi $t0, $t0, 768		# Checks one pixel below the player's feet (the player's lowest pixel)
 	lw $t2, 0($t0)
